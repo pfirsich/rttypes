@@ -22,13 +22,13 @@ namespace {
     template <typename T>
     auto offset(T* ptr, size_t offset)
     {
-        return static_cast<T*>(static_cast<uint8_t*>(ptr) + offset);
+        return static_cast<T*>(static_cast<std::byte*>(ptr) + offset);
     }
 
     template <typename T>
     auto offset(const T* ptr, size_t offset)
     {
-        return static_cast<const T*>(static_cast<const uint8_t*>(ptr) + offset);
+        return static_cast<const T*>(static_cast<const std::byte*>(ptr) + offset);
     }
 }
 
@@ -238,7 +238,7 @@ public:
         if (newSize > size_) {
             if (capacity_ < newSize) {
                 const auto newCapacity = std::max(size_ * 2, newSize);
-                const auto newData = new uint8_t[newCapacity * elementType_->size()];
+                const auto newData = new std::byte[newCapacity * elementType_->size()];
                 for (size_t i = 0; i < size_; ++i) {
                     elementType_->copyData(newData + i * elementType_->size(), indexPtr(i));
                 }
@@ -272,7 +272,7 @@ public:
 
 private:
     std::unique_ptr<Type> elementType_;
-    uint8_t* data_ = nullptr;
+    std::byte* data_ = nullptr;
     size_t size_ = 0;
     size_t capacity_ = 0; // size of data_ is capacity_ * elementType_->size()
 };
@@ -311,16 +311,17 @@ private:
 }
 
 #include <array>
+#include <cstddef>
 #include <iostream>
 
-std::string hex(const uint8_t* data, size_t len)
+std::string hex(const std::byte* data, size_t len)
 {
     static constexpr std::array<char, 16> hexChars { '0', '1', '2', '3', '4', '5', '6', '7', '8',
         '9', 'a', 'b', 'c', 'd', 'e', 'f' };
     std::string ret;
     for (size_t i = 0; i < len; ++i) {
-        ret.push_back(hexChars[(data[i] & 0xF0) >> 4]);
-        ret.push_back(hexChars[(data[i] & 0x0F) >> 0]);
+        ret.push_back(hexChars[(std::to_integer<int>(data[i]) & 0xF0) >> 4]);
+        ret.push_back(hexChars[(std::to_integer<int>(data[i]) & 0x0F) >> 0]);
     }
     return ret;
 }
@@ -331,7 +332,7 @@ int main()
     auto f1 = vec.addField("x", rttypes::Float32 {});
     vec.addField("y", rttypes::Float32 {});
 
-    std::vector<uint8_t> vecBuf(vec.size());
+    std::vector<std::byte> vecBuf(vec.size());
     vec.construct(vecBuf.data());
     auto vecView = vec.view(vecBuf.data());
     auto& x = vecView.field<float>(f1);
@@ -349,7 +350,7 @@ int main()
     line.addField("end", vec);
     line.addField("color", rttypes::String {});
 
-    std::vector<uint8_t> lineBuf(line.size());
+    std::vector<std::byte> lineBuf(line.size());
     line.construct(lineBuf.data());
     auto lineView = line.view(lineBuf.data());
     auto startView = vec.view(lineView.fieldPtr("start"));
@@ -370,12 +371,13 @@ int main()
     std::cout << hex(strStart, strLen) << "\n";
     auto visible = [](char ch) { return ch >= ' ' && ch <= '~'; };
     for (size_t i = 0; i < strLen; ++i) {
-        std::cout << " " << (visible(strStart[i]) ? static_cast<char>(strStart[i]) : ' ');
+        const auto ch = std::to_integer<char>(strStart[i]);
+        std::cout << " " << (visible(ch) ? ch : ' ');
     }
     std::cout << "\n";
 
     rttypes::Vector numList(rttypes::Float32 {});
-    std::vector<uint8_t> listBuf(numList.size());
+    std::vector<std::byte> listBuf(numList.size());
     numList.construct(listBuf.data());
     auto& listView = numList.view(listBuf.data());
     listView.resize(4);
